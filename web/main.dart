@@ -1,5 +1,7 @@
 import "dart:html";
 
+import "package:CommonLib/Random.dart";
+
 import "graph/graph.dart";
 
 Element output = querySelector("#stuff");
@@ -7,6 +9,12 @@ Element output = querySelector("#stuff");
 void main() {
     print("It begins!");
 
+    Graph graph = randomGraph(30); //basicGraph();
+
+    output.append(graph.drawGraph());
+}
+
+Graph basicGraph() {
     Graph graph = new Graph();
 
     GraphNode node1 = new GraphNode(); graph.add(node1);
@@ -28,5 +36,29 @@ void main() {
     node3.addChild(node5);
     node3.addChild(node6);
 
-    output.append(graph.drawGraph());
+    return graph;
+}
+
+Graph randomGraph(int nodecount, [int seed = null]) {
+    Graph graph = new Graph();
+    Random rand = new Random(seed);
+
+    for (int i=0; i<nodecount; i++) {
+        graph.add(new GraphNode());
+    }
+
+    Set<GraphNode> open = new Set<GraphNode>.from(graph.nodes);
+    Set<GraphNode> closed = new Set<GraphNode>();
+    GraphNode first = rand.pickFrom(open);
+    open.remove(first);
+    closed.add(first);
+
+    while(!open.isEmpty) {
+        GraphNode node = rand.pickFrom(open);
+        open.remove(node);
+        node.addChild(rand.pickFrom(closed));
+        closed.add(node);
+    }
+
+    return graph;
 }

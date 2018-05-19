@@ -16,26 +16,83 @@ class Graph {
     bool remove(GraphNode node) => nodes.remove(node);
 
     Element drawGraph() {
-        Element container = new DivElement();
+
 
         _calculateDepth();
-        _sortIntoLayers();
+        Tuple<int,int> dim = _sortIntoLayers();
 
-        int i = 0;
+        int layers = dim.first;
+        int layerwidth = dim.second;
+        int xgap = 80;
+        int ygap = 10;
+
+        List<int> depths = new List<int>.filled(layers+1, 0);
+        int width = 0;
+        
         for (GraphNode node in nodes) {
-            i++;
-            Element e = node.createElement();
-            e.style
-                ..position="absolute"
-                ..left = "${20 + 200 * node.depth}px"
-                ..top = "${40 * node.position}px";
-            container.append(e);
+            CanvasElement img = node.getImage();
+            if (img == null) { continue; }
+            
+            width = Math.max(width, img.height);
+            depths[node.depth] = Math.max(depths[node.depth], img.width);
+        }
+        
+        int graphwidth = joinCollection(depths, convert: (int i) => i, combine: (int a, int b) => a+b) + xgap * (layers + 1);
+        int graphheight = width * layerwidth + ygap * (layerwidth + 1);
+
+        CanvasElement canvas = new CanvasElement(width: graphwidth, height: graphheight);
+        CanvasRenderingContext2D ctx = canvas.context2D;
+
+        for (GraphNode node in nodes) {
+            CanvasElement img = node.getImage();
+            if (img == null) { continue; }
+
+            Tuple<int,int> pos = _drawPos(node, xgap, ygap, depths, width);
+            int x = pos.first;
+            int y = pos.second;
+
+            ctx.drawImage(node.getImage(), x,y);
+
+            for (GraphNode child in node.children) {
+                CanvasElement cimg = child.getImage();
+                if (cimg == null) { continue; }
+
+                num px = x + img.width;
+                num py = y + img.height * 0.5;
+
+                Tuple<int,int> cpos = _drawPos(child, xgap, ygap, depths, width);
+
+                num cx = cpos.first;
+                num cy = cpos.second + cimg.height * 0.5;
+
+                ctx
+                    ..beginPath()
+                    ..moveTo(px, py)
+                    ..lineTo(cx, cy)
+                    ..stroke();
+            }
         }
 
-        return container;
+        return canvas;
     }
 
-    void _sortIntoLayers() {
+    void _drawNode(CanvasRenderingContext2D ctx, GraphNode node, int xgap, int ygap, List<int> depths, int width) {
+        Tuple<int,int> pos = _drawPos(node, xgap, ygap, depths, width);
+
+        ctx.drawImage(node.getImage(), pos.first, pos.second);
+    }
+
+    Tuple<int,int> _drawPos(GraphNode node, int xgap, int ygap, List<int> depths, int width) {
+        int x = xgap;
+        for (int i=0; i<node.depth; i++) {
+            x += depths[i] + xgap;
+        }
+        int y = node.position * (width + ygap);
+
+        return new Tuple<int,int>(x,y);
+    }
+
+    Tuple<int,int> _sortIntoLayers() {
         int count = 0;
         for (GraphNode node in nodes) {
             count = Math.max(count, node.depth);
@@ -71,10 +128,13 @@ class Graph {
         }
 
         int iter = 0;
+        int moves;
         bool done = false;
         while (!done) {
+            moves = 0;
+            print("Loop $iter");
             iter++;
-            if (iter > 100) { break; }
+            if (iter > 1000) { break; }
             //print("Start #################################################################################################");
             for (List<GraphNode> layer in _layers) {
                 //print("Layer ------------------");
@@ -86,9 +146,18 @@ class Graph {
                     double na = a.averagepos();
                     double nb = b.averagepos();
                     //print("a${a is DummyGraphNode ? "D" : ""}: $na, b${b is DummyGraphNode ? "D" : ""}: $nb");
-                    return na.compareTo(nb);
+
+                    int comparison = na.compareTo(nb);
+
+                    if (comparison != 0) {
+                        //print("${a.name()} vs ${b.name()}: $comparison");
+                        moves++;
+                    }
+
+                    return comparison;
                 });
             }
+            print("moves: $moves");
         }
 
         for (List<GraphNode> layer in _layers) {
@@ -97,6 +166,8 @@ class Graph {
                 //print(i);
             }
         }
+
+        return new Tuple<int,int>(count, size);
     }
 
     void _calculateDepth() {
@@ -146,10 +217,32 @@ class GraphNode {
     int position = 0;
     int layersize = 0;
 
-    Element createElement() => new DivElement()
-        ..style.border="1px solid black"
-        ..style.padding="5px"
-        ..text="0x${this.hashCode.toRadixString(16).padLeft(8,"0")}";
+    CanvasElement _image;
+
+    CanvasElement getImage() {
+        draw();
+        return _image;
+    }
+
+    void draw() {
+        if (_image != null) { return; }
+
+        int w = 75;
+        int h = 30;
+
+        CanvasElement canvas = new CanvasElement(width: w, height: h);
+        _image = canvas;
+
+        CanvasRenderingContext2D ctx = canvas.context2D;
+
+        ctx
+            ..fillStyle="#FFFFFF"
+            ..fillRect(0, 0, w, h)
+            ..strokeStyle="#000000"
+            ..strokeRect(0.5, 0.5, w-1, h-1)
+            ..fillStyle="#000000"
+            ..fillText(name(), 10, 18);
+    }
 
     void addChild(GraphNode node) {
         children.add(node);
@@ -161,13 +254,13 @@ class GraphNode {
     }
 
     double averagepos() {
-        double dpos = this.position / layersize;
-        double ppos = parents.isEmpty ? -1 : joinCollection(parents, convert:(GraphNode n) => n.position / n.layersize, combine:(double a, double b) => a+b) / parents.length;
-        double cpos = children.isEmpty ? -1 : joinCollection(children, convert:(GraphNode n) => n.position / n.layersize, combine:(double a, double b) => a+b) / children.length;
+        double dpos = this.position.toDouble();
+        double ppos = parents.isEmpty ? -1 : joinCollection(parents, convert:(GraphNode n) => n.position.toDouble(), combine:(double a, double b) => a+b) / parents.length;
+        double cpos = children.isEmpty ? -1 : joinCollection(children, convert:(GraphNode n) => n.position.toDouble(), combine:(double a, double b) => a+b) / children.length;
 
         double pweight = parents.isEmpty ? 0.0 : 0.3;
-        double cweight = children.isEmpty ? 0.0 : 0.5;
-        double posweight = 0.2;
+        double cweight = children.isEmpty ? 0.0 : 0.6;
+        double posweight = 0.0;
 
         double totalweight = pweight + cweight + posweight;
         pweight /= totalweight;
@@ -178,12 +271,20 @@ class GraphNode {
 
         return ppos * pweight + cpos * cweight + dpos * posweight;
     }
+
+    String name() => "0x${this.hashCode.toRadixString(16).padLeft(8, "0")}";
 }
 
 class DummyGraphNode extends GraphNode {
     @override
+    CanvasElement getImage() => null;
+
+    @override
     double averagepos() {
-        double pos = position / layersize;
-        return pos - (pos < 0.5 ? -0.1 : 0.1);
+        double pos = position.toDouble();
+        return pos;// - (pos < 0.5 ? -0.1 : 0.1);
     }
+
+    @override
+    String name() => "D ${super.name()}";
 }
