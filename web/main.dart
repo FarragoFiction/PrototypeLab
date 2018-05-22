@@ -9,7 +9,9 @@ Element output = querySelector("#stuff");
 void main() {
     print("It begins!");
 
-    Graph graph = randomGraph(30); //basicGraph();
+    Graph graph = randomShipGraph(4, 10, 3);//randomGraph(30);//, 1); //basicGraph();
+
+    print("graph made, drawing");
 
     output.append(graph.drawGraph());
 }
@@ -58,6 +60,56 @@ Graph randomGraph(int nodecount, [int seed = null]) {
         open.remove(node);
         node.addChild(rand.pickFrom(closed));
         closed.add(node);
+    }
+
+    return graph;
+}
+
+Graph randomShipGraph(int layers, int countperlayer, int shipcount, [int seed = null]) {
+    Graph graph = new Graph();
+    Random rand = new Random(seed);
+
+    List<GraphNode> ships;
+
+    int loop_countperlayer;
+    int loop_shipcount;
+
+    for (int layer = 0; layer<layers; layer++) {
+        loop_countperlayer = layer == 0 ? 2 : countperlayer;
+        loop_shipcount = layer == 0 ? 1 : shipcount;
+
+        List<GraphNode> layernodes = <GraphNode>[];
+        for (int i=0; i<loop_countperlayer; i++) {
+            GraphNode n = new GraphNode();
+            layernodes.add(n);
+            graph.add(n);
+        }
+
+        if (layer != 0) {
+            for (GraphNode n in layernodes) {
+                rand.pickFrom(ships).addChild(n);
+            }
+        }
+
+        ships = <GraphNode>[];
+        if (layer != layers-1) {
+            for (int i=0; i<loop_shipcount; i++) {
+                GraphNode ship = new GraphNode();
+                ships.add(ship);
+                graph.add(ship);
+
+                GraphNode parent1 = rand.pickFrom(layernodes);
+                parent1.addChild(ship);
+                GraphNode parent2 = rand.pickFrom(layernodes.where((GraphNode n) => n != parent1));
+                parent2.addChild(ship);
+            }
+        }/* else {
+            GraphNode end = new GraphNode();
+            graph.add(end);
+            for (GraphNode n in layernodes) {
+                n.addChild(end);
+            }
+        }*/
     }
 
     return graph;

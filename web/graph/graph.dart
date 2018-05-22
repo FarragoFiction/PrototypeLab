@@ -1,6 +1,7 @@
 import "dart:html";
 import "dart:math" as Math;
 
+import "package:CommonLib/Random.dart";
 import "package:CommonLib/Utility.dart";
 
 class Graph {
@@ -87,7 +88,7 @@ class Graph {
         for (int i=0; i<node.depth; i++) {
             x += depths[i] + xgap;
         }
-        int y = node.position * (width + ygap);
+        int y = node.position.floor() * (width + ygap);
 
         return new Tuple<int,int>(x,y);
     }
@@ -110,6 +111,7 @@ class Graph {
         for (List<GraphNode> layer in _layers) {
             size = Math.max(size, layer.length);
         }
+        size += 6; // breathing room?
 
         for (List<GraphNode> layer in _layers) {
             bool flop = false;
@@ -123,49 +125,156 @@ class Graph {
             }
             //layer.shuffle();
             for (int i=0; i < size; i++) {
-                layer[i]..position = i..layersize = size;
+                layer[i]..position = i.toDouble()..layersize = size;
             }
         }
 
         int iter = 0;
-        int moves;
         bool done = false;
         while (!done) {
-            moves = 0;
-            print("Loop $iter");
+            //print("Loop $iter ###################################");
             iter++;
-            if (iter > 1000) { break; }
+            if (iter > 500) { break; }
+            done = true; // set false when we move something
+
             //print("Start #################################################################################################");
+            int layernum = 0;
             for (List<GraphNode> layer in _layers) {
-                //print("Layer ------------------");
+                layernum++;
+                //print("Layer $layernum ------------------");
+
+                Map<GraphNode, double> startpos = <GraphNode,double>{};
+
+                List<GraphNode> dummies = <GraphNode>[];
+                Map<GraphNode, Tuple<double,double>> reals = <GraphNode, Tuple<double,double>>{};
+
+                // POSITION ##########################################################
                 for (int i=0; i < size; i++) {
-                    layer[i].position = i;
+                    GraphNode n = layer[i];
+                    n.position = i.toDouble();
+                    startpos[n] = n.position;
+                }
+                for (int i=0; i < size; i++) {
+                    GraphNode n = layer[i];
+                    if (n is DummyGraphNode) {
+                        dummies.add(n);
+                    } else {
+                        double pos = n.averagepos();
+                        reals[n] = new Tuple<double,double>(pos,pos);
+                    }
                 }
 
-                layer.sort((GraphNode a, GraphNode b) {
-                    double na = a.averagepos();
-                    double nb = b.averagepos();
-                    //print("a${a is DummyGraphNode ? "D" : ""}: $na, b${b is DummyGraphNode ? "D" : ""}: $nb");
+                // NUDGE ##########################################################
 
-                    int comparison = na.compareTo(nb);
+                Random nudgeRand = new Random(layernum);
+                bool flop = false;
+                bool cont = true;
+                int nudgeIterations = 0;
+                while(cont) {
+                    cont = false;
+                    nudgeIterations++;
+                    if (nudgeIterations > 1000) { break; }
 
-                    if (comparison != 0) {
-                        //print("${a.name()} vs ${b.name()}: $comparison");
-                        moves++;
+                    for (GraphNode node in reals.keys) {
+                        double offset = 0.0;
+                        int count = 0;
+
+                        for (GraphNode other in reals.keys) {
+                            if (node == other) {
+                                continue;
+                            }
+
+                            double diff = reals[node].first - reals[other].first;
+                            double absdiff = diff.abs();
+
+                            if (absdiff < 1.0) {
+                                if (absdiff < 0.01) {
+                                    diff += (diff < 0 ? -1 : 1) * (flop ? -0.01 : 0.01);
+                                    flop = !flop;
+                                }
+                                offset += diff.sign * (0.25 + nudgeRand.nextDouble(0.8));
+                                count++;
+                                cont = true;
+                            }
+                        }
+
+                        if (count > 0) {
+                            offset /= count;
+                            if (offset + reals[node].first < 0) {
+                                offset += 0.5;
+                            } else if (offset + reals[node].first > size-1) {
+                                offset -= 0.5;
+                            }
+
+                            reals[node].second += offset;
+                        }
                     }
 
-                    return comparison;
-                });
+                    for (GraphNode node in reals.keys) {
+                        //print("old: ${reals[node].first}, new: ${reals[node].second}");
+                        reals[node].first = reals[node].second;
+                    }
+                }
+                //print("Nudge Iterations: $nudgeIterations");
+
+                for (GraphNode node in reals.keys) {
+                    node.position = node.position * 0.25 + reals[node].first * 0.75;
+                }
+
+                // FILL BLANKS ##########################################################
+
+                List<int> empty = <int>[];
+
+                for (int i=0; i<size; i++) {
+                    bool ok = true;
+                    for (GraphNode node in reals.keys) {
+                        double diff = i - reals[node].first;
+                        if (diff.abs() <= 0.5) {
+                            ok = false;
+                            break;
+                        }
+                    }
+
+                    if (ok) {
+                        empty.add(i);
+                    }
+                }
+
+                //print("empties: ${empty.length}, dummies: ${dummies.length}");
+
+                for (GraphNode node in dummies) {
+                    int newpos = 0;
+                    if (empty.isEmpty) {
+                        newpos = flop ? -2 : size + 1;
+                        flop = !flop;
+                    } else {
+                        newpos = nudgeRand.pickFrom(empty);
+                        empty.remove(newpos);
+                    }
+                    node.position = newpos.toDouble();
+                }
+
+                // SORT ##########################################################
+
+                layer.sort((GraphNode a, GraphNode b) => a.position.compareTo(b.position));
+
+                for (int i=0; i < size; i++) {
+                    layer[i].position = i.toDouble();
+                }
+
+                for (GraphNode n in layer) {
+                    double start = startpos[n];
+                    double end = n.position;
+
+                    if (!(n is DummyGraphNode) && start != end) {
+                        //print("$start -> $end");
+                        done = false;
+                    }
+                }
             }
-            print("moves: $moves");
         }
 
-        for (List<GraphNode> layer in _layers) {
-            for (int i=0; i < size; i++) {
-                layer[i].position = i;
-                //print(i);
-            }
-        }
+
 
         return new Tuple<int,int>(count, size);
     }
@@ -214,7 +323,7 @@ class GraphNode {
     Set<GraphNode> children = new Set<GraphNode>();
 
     int depth = 0;
-    int position = 0;
+    double position = 0.0;
     int layersize = 0;
 
     CanvasElement _image;
@@ -254,12 +363,12 @@ class GraphNode {
     }
 
     double averagepos() {
-        double dpos = this.position.toDouble();
+        /*double dpos = this.position.toDouble();
         double ppos = parents.isEmpty ? -1 : joinCollection(parents, convert:(GraphNode n) => n.position.toDouble(), combine:(double a, double b) => a+b) / parents.length;
         double cpos = children.isEmpty ? -1 : joinCollection(children, convert:(GraphNode n) => n.position.toDouble(), combine:(double a, double b) => a+b) / children.length;
 
         double pweight = parents.isEmpty ? 0.0 : 0.3;
-        double cweight = children.isEmpty ? 0.0 : 0.6;
+        double cweight = children.isEmpty ? 0.0 : 0.3;//6;
         double posweight = 0.0;
 
         double totalweight = pweight + cweight + posweight;
@@ -267,9 +376,15 @@ class GraphNode {
         cweight /= totalweight;
         posweight /= totalweight;
 
-        //print("dpos: $dpos, ppos: $ppos, cpos: $cpos (p: ${parents.length}, c: ${children.length})");
+        print("dpos: $dpos, ppos: $ppos, cpos: $cpos (p: ${parents.length}, c: ${children.length})");
 
-        return ppos * pweight + cpos * cweight + dpos * posweight;
+        return ppos * pweight + cpos * cweight + dpos * posweight;*/
+
+        List<double> pos = <double>[];
+        pos.addAll(parents.map((GraphNode n) => n.position));
+        pos.addAll(children.map((GraphNode n) => n.position));
+
+        return pos.isEmpty ? this.position : (joinCollection(pos, convert:(double p) => p, combine:(double a, double b)=>a+b) / pos.length);
     }
 
     String name() => "0x${this.hashCode.toRadixString(16).padLeft(8, "0")}";
