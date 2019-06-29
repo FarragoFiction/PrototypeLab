@@ -9,7 +9,7 @@ Element output = querySelector("#stuff");
 void main() {
     print("It begins!");
 
-    Graph graph = randomShipGraph(4, 10, 3);//randomGraph(30);//, 1); //basicGraph();
+    final Graph graph = randomShipGraph(4, 10, 3);//randomGraph(30);//, 1); //basicGraph();
 
     print("graph made, drawing");
 
@@ -17,17 +17,17 @@ void main() {
 }
 
 Graph basicGraph() {
-    Graph graph = new Graph();
+    final Graph graph = new Graph();
 
-    GraphNode node1 = new GraphNode(); graph.add(node1);
-    GraphNode node2 = new GraphNode(); graph.add(node2);
-    GraphNode node3 = new GraphNode(); graph.add(node3);
-    GraphNode node4 = new GraphNode(); graph.add(node4);
-    GraphNode node5 = new GraphNode(); graph.add(node5);
-    GraphNode node6 = new GraphNode(); graph.add(node6);
-    GraphNode node7 = new GraphNode(); graph.add(node7);
-    GraphNode node8 = new GraphNode(); graph.add(node8);
-    GraphNode node9 = new GraphNode(); graph.add(node9);
+    final GraphNode node1 = new GraphNode(); graph.add(node1);
+    final GraphNode node2 = new GraphNode(); graph.add(node2);
+    final GraphNode node3 = new GraphNode(); graph.add(node3);
+    final GraphNode node4 = new GraphNode(); graph.add(node4);
+    final GraphNode node5 = new GraphNode(); graph.add(node5);
+    final GraphNode node6 = new GraphNode(); graph.add(node6);
+    final GraphNode node7 = new GraphNode(); graph.add(node7);
+    final GraphNode node8 = new GraphNode(); graph.add(node8);
+    final GraphNode node9 = new GraphNode(); graph.add(node9);
 
     node1.addChild(node2);
     node2.addChild(node3);
@@ -41,22 +41,22 @@ Graph basicGraph() {
     return graph;
 }
 
-Graph randomGraph(int nodecount, [int seed = null]) {
-    Graph graph = new Graph();
-    Random rand = new Random(seed);
+Graph randomGraph(int nodecount, [int seed]) {
+    final Graph graph = new Graph();
+    final Random rand = new Random(seed);
 
     for (int i=0; i<nodecount; i++) {
         graph.add(new GraphNode());
     }
 
-    Set<GraphNode> open = new Set<GraphNode>.from(graph.nodes);
-    Set<GraphNode> closed = new Set<GraphNode>();
-    GraphNode first = rand.pickFrom(open);
+    final Set<GraphNode> open = new Set<GraphNode>.from(graph.nodes);
+    final Set<GraphNode> closed = <GraphNode>{};
+    final GraphNode first = rand.pickFrom(open);
     open.remove(first);
     closed.add(first);
 
     while(!open.isEmpty) {
-        GraphNode node = rand.pickFrom(open);
+        final GraphNode node = rand.pickFrom(open);
         open.remove(node);
         node.addChild(rand.pickFrom(closed));
         closed.add(node);
@@ -65,9 +65,9 @@ Graph randomGraph(int nodecount, [int seed = null]) {
     return graph;
 }
 
-Graph randomShipGraph(int layers, int countperlayer, int shipcount, [int seed = null]) {
-    Graph graph = new Graph();
-    Random rand = new Random(seed);
+Graph randomShipGraph(int layers, int countperlayer, int shipcount, [int seed]) {
+    final Graph graph = new Graph();
+    final Random rand = new Random(seed);
 
     List<GraphNode> ships;
 
@@ -78,15 +78,15 @@ Graph randomShipGraph(int layers, int countperlayer, int shipcount, [int seed = 
         loop_countperlayer = layer == 0 ? 2 : countperlayer;
         loop_shipcount = layer == 0 ? 1 : shipcount;
 
-        List<GraphNode> layernodes = <GraphNode>[];
+        final List<GraphNode> layernodes = <GraphNode>[];
         for (int i=0; i<loop_countperlayer; i++) {
-            GraphNode n = new GraphNode();
+            final GraphNode n = new GraphNode();
             layernodes.add(n);
             graph.add(n);
         }
 
         if (layer != 0) {
-            for (GraphNode n in layernodes) {
+            for (final GraphNode n in layernodes) {
                 rand.pickFrom(ships).addChild(n);
             }
         }
@@ -94,13 +94,13 @@ Graph randomShipGraph(int layers, int countperlayer, int shipcount, [int seed = 
         ships = <GraphNode>[];
         if (layer != layers-1) {
             for (int i=0; i<loop_shipcount; i++) {
-                GraphNode ship = new GraphNode();
+                final GraphNode ship = new GraphNode();
                 ships.add(ship);
                 graph.add(ship);
 
-                GraphNode parent1 = rand.pickFrom(layernodes);
+                final GraphNode parent1 = rand.pickFrom(layernodes);
                 parent1.addChild(ship);
-                GraphNode parent2 = rand.pickFrom(layernodes.where((GraphNode n) => n != parent1));
+                final GraphNode parent2 = rand.pickFrom(layernodes.where((GraphNode n) => n != parent1));
                 parent2.addChild(ship);
             }
         }/* else {
