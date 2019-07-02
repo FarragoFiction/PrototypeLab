@@ -1,4 +1,4 @@
-import "dart:html";
+import "dart:async";
 
 import "package:CommonLib/Workers.dart";
 
@@ -6,24 +6,31 @@ class TestWorker extends WorkerBase {
     TestWorker() : super();
 
     @override
-    void handleMainThreadMessage(String label, dynamic payload) {
+    Future<dynamic> handleCommand(String command, dynamic payload) async {
         print("message received in worker");
 
-        sendMainThreadMessage("test", "worker message return: $payload");
+        switch(command) {
+            case "test":
+                final String message = payload;
+                return "Worker reply: $message";
+
+            case "error":
+                throw Exception("deliberate exception");
+
+            case "delay":
+                final String message = payload;
+                return new Future<String>.delayed(Duration(seconds: 2), () => "2 seconds later: $message");
+
+            case "forever":
+                final Completer<void> forever = new Completer<void>();
+                return forever.future;
+        }
+
+        return null;
     }
 }
 
 
 void main() {
     new TestWorker();
-
-    /*print("worker loaded");
-
-    final DedicatedWorkerGlobalScope scope = DedicatedWorkerGlobalScope.instance;
-
-    scope.onMessage.listen((MessageEvent e) {
-        print("message received in worker");
-
-        scope.postMessage("worker message return: ${e.data}");
-    });*/
 }
