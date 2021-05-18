@@ -4,10 +4,10 @@ import "dart:math" as Math;
 import "package:CommonLib/Random.dart";
 import "package:CommonLib/Utility.dart";
 
-class Graph {
+/*class Graph {
 
-    Set<GraphNode> nodes;
-    List<List<GraphNode>> _layers;
+    late Set<GraphNode> nodes;
+    late List<List<GraphNode>> _layers;
 
     Graph() {
         nodes = <GraphNode>{};
@@ -34,8 +34,8 @@ class Graph {
             final CanvasElement img = node.getImage();
             if (img == null) { continue; }
             
-            width = Math.max(width, img.height);
-            depths[node.depth] = Math.max(depths[node.depth], img.width);
+            width = Math.max(width, img.height!);
+            depths[node.depth] = Math.max(depths[node.depth], img.width!);
         }
 
         final int graphwidth = joinCollection(depths, convert: (int i) => i, combine: (int a, int b) => a+b) + xgap * (layers + 1);
@@ -402,4 +402,4 @@ class DummyGraphNode extends GraphNode {
 
     @override
     String name() => "D ${super.name()}";
-}
+}*/

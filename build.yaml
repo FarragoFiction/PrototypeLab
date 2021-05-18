@@ -1,10 +1,32 @@
 targets:
   $default:
     builders:
+      PrototypeLab|testBuilder:
+        enabled: true
+
       build_web_compilers|entrypoint:
         generate_for:
           exclude:
             - "**.worker.dart"
+            - "lib/builder/testfiles/**"
         release_options:
           dart2js_args:
             - -O3
+
+builders:
+  testBuilder:
+    import: "package:PrototypeLab/builders/builders.dart"
+    builder_factories:
+      - "testBuilder"
+    build_extensions:
+      #"$lib$":
+      #  - "test.txt"
+      ".level":
+        - ".txt"
+    build_to: cache
+    auto_apply: root_package
+    runs_before:
+      - "build_web_compilers|entrypoint"
+      - "build_web_compilers|ddc"
+      - "build_web_compilers|dart2js_modules"
+      - "build_modules|module_library"

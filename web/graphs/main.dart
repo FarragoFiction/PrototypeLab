@@ -4,19 +4,19 @@ import "package:CommonLib/Random.dart";
 
 import "graph/graph.dart";
 
-Element output = querySelector("#stuff");
+Element output = querySelector("#stuff")!;
 
 void main() {
-    print("It begins!");
+    /*print("It begins!");
 
     final Graph graph = randomShipGraph(4, 10, 3);//randomGraph(30);//, 1); //basicGraph();
 
     print("graph made, drawing");
 
-    output.append(graph.drawGraph());
+    output.append(graph.drawGraph());*/
 }
 
-Graph basicGraph() {
+/*Graph basicGraph() {
     final Graph graph = new Graph();
 
     final GraphNode node1 = new GraphNode(); graph.add(node1);
@@ -41,7 +41,7 @@ Graph basicGraph() {
     return graph;
 }
 
-Graph randomGraph(int nodecount, [int seed]) {
+Graph randomGraph(int nodecount, [int? seed]) {
     final Graph graph = new Graph();
     final Random rand = new Random(seed);
 
@@ -51,25 +51,25 @@ Graph randomGraph(int nodecount, [int seed]) {
 
     final Set<GraphNode> open = new Set<GraphNode>.from(graph.nodes);
     final Set<GraphNode> closed = <GraphNode>{};
-    final GraphNode first = rand.pickFrom(open);
+    final GraphNode first = rand.pickFrom(open)!;
     open.remove(first);
     closed.add(first);
 
     while(!open.isEmpty) {
-        final GraphNode node = rand.pickFrom(open);
+        final GraphNode node = rand.pickFrom(open)!;
         open.remove(node);
-        node.addChild(rand.pickFrom(closed));
+        node.addChild(rand.pickFrom(closed)!);
         closed.add(node);
     }
 
     return graph;
 }
 
-Graph randomShipGraph(int layers, int countperlayer, int shipcount, [int seed]) {
+Graph randomShipGraph(int layers, int countperlayer, int shipcount, [int? seed]) {
     final Graph graph = new Graph();
     final Random rand = new Random(seed);
 
-    List<GraphNode> ships;
+    late List<GraphNode> ships;
 
     int loop_countperlayer;
     int loop_shipcount;
@@ -87,7 +87,7 @@ Graph randomShipGraph(int layers, int countperlayer, int shipcount, [int seed]) 
 
         if (layer != 0) {
             for (final GraphNode n in layernodes) {
-                rand.pickFrom(ships).addChild(n);
+                rand.pickFrom(ships)!.addChild(n);
             }
         }
 
@@ -98,9 +98,9 @@ Graph randomShipGraph(int layers, int countperlayer, int shipcount, [int seed]) 
                 ships.add(ship);
                 graph.add(ship);
 
-                final GraphNode parent1 = rand.pickFrom(layernodes);
+                final GraphNode parent1 = rand.pickFrom(layernodes)!;
                 parent1.addChild(ship);
-                final GraphNode parent2 = rand.pickFrom(layernodes.where((GraphNode n) => n != parent1));
+                final GraphNode parent2 = rand.pickFrom(layernodes.where((GraphNode n) => n != parent1))!;
                 parent2.addChild(ship);
             }
         }/* else {
@@ -113,4 +113,4 @@ Graph randomShipGraph(int layers, int countperlayer, int shipcount, [int seed]) 
     }
 
     return graph;
-}
+}*/
