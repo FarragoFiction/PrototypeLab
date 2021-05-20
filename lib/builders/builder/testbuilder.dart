@@ -3,38 +3,36 @@ import "package:glob/glob.dart";
 import "package:path/path.dart" as p;
 
 class TestBuilder extends Builder {
-    static final Glob _inputAsset = new Glob("web/builders/**");
-
-    static AssetId _outputAsset(BuildStep buildStep) {
-        return new AssetId(buildStep.inputId.package, p.join("lib", "test.txt"));
-    }
-
     @override
     Map<String, List<String>> get buildExtensions {
         return const <String,List<String>>{
-            //r'$lib$': <String>["test.txt"]
             ".level": <String>[".txt"]
         };
     }
 
     @override
     Future<void> build(BuildStep buildStep) async {
-        //log.warning("TestBuilder run on $buildStep");
-        /*final List<String> files = <String>[];
-
-        await for(final AssetId input in buildStep.findAssets(_inputAsset)) {
-            log.warning(input.path);
-            files.add(input.path);
-        }*/
-
-        //final AssetId output = _outputAsset(buildStep);
         final AssetId input = buildStep.inputId;
 
-        log.warning("TestBuilder run on ${input.path}");
+        final String name = p.basenameWithoutExtension(input.path);
+        final String directory = p.dirname(input.path);
+
+        final String dataDir = <String>[...p.split(directory), "level_$name"].join("/");
+
+        final Glob assetPath = new Glob("$dataDir/**");
+
+        log.warning(assetPath);
+
+        final List<String> files = <String>[];
+
+        await for (final AssetId input in buildStep.findAssets(assetPath)) {
+            final String rel = p.split(p.relative(input.path, from: dataDir)).join("/");
+            log.warning(rel);
+            files.add("$rel -> ${await buildStep.readAsString(input)}");
+        }
 
         final AssetId output = input.changeExtension(".txt");
 
-        return buildStep.writeAsString(output, "poot");
-
+        await buildStep.writeAsString(output, files.join("\n"));
     }
 }

@@ -19,8 +19,6 @@ builders:
     builder_factories:
       - "testBuilder"
     build_extensions:
-      #"$lib$":
-      #  - "test.txt"
       ".level":
         - ".txt"
     build_to: cache
@@ -30,3 +28,16 @@ builders:
       - "build_web_compilers|ddc"
       - "build_web_compilers|dart2js_modules"
       - "build_modules|module_library"
+    applies_builders:
+      - PrototypeLab|testCleanupBuilder
+
+post_process_builders:
+  testCleanupBuilder:
+    import: "package:PrototypeLab/builders/builders.dart"
+    builder_factory: "testCleanup"
+    defaults:
+      release_options:
+        enabled: true
+      generate_for:
+        - "web/builders/testfiles/**level_*/**"
+        - "web/builders/testfiles/**.level"
