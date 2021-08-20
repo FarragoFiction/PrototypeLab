@@ -5,23 +5,21 @@ import "package:CommonLib/Random.dart";
 
 import "cache.dart";
 import "drawing.dart";
+import "world/biome.dart";
 import "world/dungeon.dart";
 
 Element output = querySelector("#stuff")!;
 
 Future<void> main() async {
-    final Dungeon dungeon = new Dungeon(window.innerWidth!, window.innerHeight!, 123);
+    Biome.initBiomes();
 
-    dungeon.canvas.style
-        ..position="absolute"
-        ..left="0"
-        ..top="0";
+    final Dungeon dungeon = new Dungeon(window.innerWidth!, window.innerHeight!, 123);
 
     window.onResize.listen((Event e) {
         dungeon.resize(window.innerWidth!, window.innerHeight!);
     });
 
-    output.append(dungeon.canvas);
+    output.append(dungeon.container);
 }
 
 
@@ -79,16 +77,19 @@ class Blobs {
 }
 
 class Noise {
-    static final ValueCache<double> cache = new ValueCache<double>(1000);
+    final ValueCache<double> cache = new ValueCache<double>(1000);
+    final int seed;
 
-    static double noise(int x, int y) {
+    Noise(int this.seed);
+
+    double noise(int x, int y) {
         final double? cached = cache.getValue(x, y);
 
         if (cached != null) {
             return cached;
         }
 
-        final Random rand = new Random(hashPair(x, y));
+        final Random rand = new Random(hashPair(x, y) + seed * 7);
         final double value = rand.nextDouble();
         cache.addValue(x, y, value);
 

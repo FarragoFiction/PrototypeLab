@@ -5,13 +5,16 @@ import "package:CommonLib/Workers.dart";
 
 import "../cache.dart";
 import '../main.dart';
+import "biome.dart";
+import "tile.dart";
 
 class Dungeon {
     static const int extraTileGenerationRadius = 1;
 
-    late final WorkerHandler worker;
     final int seed;
+    final Map<int,DungeonTile> tiles = <int,DungeonTile>{};
 
+    // Client side stuff
     int cameraX = 0;
     int cameraY = 0;
     int tileX = 0;
@@ -22,31 +25,67 @@ class Dungeon {
     late int halfWidth;
     late int halfHeight;
 
+    late final Element container;
+    late final Element searchBar;
     late final CanvasElement canvas;
     late final CanvasRenderingContext2D context;
-
-    final Map<int,DungeonTile> tiles = <int,DungeonTile>{};
-
-    Dungeon(int width, int height, int this.seed, {bool isWorker = false}) {
-        if (!isWorker) {
-            canvas = new CanvasElement(width: width, height: height);
-            context = canvas.context2D;
-
-            worker = createWebWorker("endlessdungeon/tileworker.worker.dart");
-            worker.sendInstantCommand(WorkerCommands.initialise, seed);
-
-            resize(width, height);
-
-            canvas.onMouseDown.listen(mouseDown);
-            canvas.onMouseMove.listen(mouseMove);
-            window.onMouseUp.listen(mouseUp);
-        }
-    }
+    late final WorkerHandler worker;
 
     bool mouseHeld = false;
     late Point<num> dragStart;
     late CoordPair dragCoord;
     late Point<num> mousePos;
+
+    late final NumberInputElement xInput;
+    late final NumberInputElement yInput;
+
+    // Worker side stuff
+    late final Blobs blobs;
+    late final Noise noise;
+
+    Dungeon(int width, int height, int this.seed, {bool isWorker = false}) {
+        if (isWorker) {
+            // this is the worker thread, we need to set up things related to generation
+
+            blobs = new Blobs(2, seed);
+            noise = new Noise(seed + 1);
+        } else {
+            // this is the client thread, we need to set up things related to rendering
+
+            container = new DivElement()..className="dungeon";
+
+            canvas = new CanvasElement(width: width, height: height);
+            container.append(canvas);
+            context = canvas.context2D;
+
+            worker = createWebWorker("endlessdungeon/tileworker.worker.dart");
+            worker.sendInstantCommand(WorkerCommands.initialise, seed);
+
+            xInput = new NumberInputElement()..valueAsNumber = cameraX;
+            yInput = new NumberInputElement()..valueAsNumber = cameraY;
+            searchBar = new DivElement()
+                ..className="dungeonSearch"
+                ..text="Go to:"
+                ..append(xInput)
+                ..append(yInput)
+                ..append(new ButtonElement()
+                    ..text="Go!"
+                    ..onClick.listen((Event e) {
+                        this.setCameraPos(xInput.valueAsNumber?.floor() ?? 0, yInput.valueAsNumber?.floor() ?? 0);
+                    })
+                );
+            container.append(searchBar);
+
+            canvas.onMouseDown.listen(mouseDown);
+            canvas.onMouseMove.listen(mouseMove);
+            window.onMouseUp.listen(mouseUp);
+
+            resize(width, height);
+            drawLoop();
+        }
+    }
+
+    double blob(int x, int y) => blobs.blob(x, y, this.noise.noise);
 
     void mouseDown(MouseEvent event) {
         mouseHeld = true;
@@ -55,11 +94,14 @@ class Dungeon {
 
         //print("mouseDown at offset $dragStart, world $dragCoord");
 
+        searchBar.classes.add("dragging");
+
         mouseMove(event);
     }
 
     void mouseUp(MouseEvent event) {
         mouseHeld = false;
+        searchBar.classes.remove("dragging");
     }
 
     void mouseMove(MouseEvent event) {
@@ -85,7 +127,7 @@ class Dungeon {
         canvas.height = newHeight;
 
         updateTiles();
-        redraw();
+        //redraw();
     }
 
     void setCameraPos(int x, int y) {
@@ -103,7 +145,10 @@ class Dungeon {
             updateTiles();
         }
 
-        redraw();
+        xInput.valueAsNumber = x;
+        yInput.valueAsNumber = y;
+
+        //redraw();
     }
 
     void updateTiles() {
@@ -153,7 +198,12 @@ class Dungeon {
         //print("New Tile Count: ${tiles.length}");
     }
 
-    void redraw() {
+    void drawLoop([num dt = 1/60]) {
+        redraw(dt.toDouble());
+        window.requestAnimationFrame(drawLoop);
+    }
+
+    void redraw([double dt = 1/60]) {
         context.clearRect(0, 0, viewWidth, viewHeight);
 
         context.save();
@@ -208,70 +258,7 @@ class Dungeon {
     }
 }
 
-class DungeonTile {
-    static const int tileSize = 300;
-    static const int halfSize = tileSize ~/ 2;
 
-    final Dungeon dungeon;
-
-    final int x;
-    final int y;
-    final int worldX;
-    final int worldY;
-
-    bool generated = false;
-
-    DungeonTile(Dungeon this.dungeon, int this.x, int this.y, {bool isWorker = false}) : worldX = x * tileSize, worldY = y * tileSize {
-        if (!isWorker) {
-            requestGeneration().then((void _) {
-                generated = true;
-            });
-        }
-    }
-
-    void draw(CanvasRenderingContext2D ctx) {
-        if (!generated) {
-            ctx
-                ..fillStyle="silver"
-                ..fillRect(worldX - halfSize + 0.5, worldY - halfSize + 0.5, tileSize, tileSize)
-            ;
-        }
-
-        ctx
-            ..strokeStyle = "black"
-            ..strokeRect(worldX - halfSize + 0.5, worldY - halfSize + 0.5, tileSize, tileSize)
-            ..fillStyle = "black"
-            ..textAlign = "center"
-            ..fillText("Tile $x,$y", worldX, worldY)
-        ;
-    }
-
-    Future<void> requestGeneration() async {
-        // this isn't the same as serialise because it's the info for starting generation, not the generated data
-        final Map<String,dynamic> payload = <String,dynamic>{
-            "x" : x,
-            "y" : y,
-        };
-
-        deserialise(await dungeon.worker.sendCommand(WorkerCommands.generate, payload: payload));
-    }
-
-    Future<void> generate() async {
-        await Future<void>.delayed(const Duration(seconds: 1));
-    }
-
-    /// Used on the worker side to pack the generated data
-    Map<String,dynamic> serialise() {
-        final Map<String,dynamic> payload = <String,dynamic>{};
-
-        return payload;
-    }
-
-    /// Used on the client side to unpack the generated data
-    void deserialise(dynamic rawPayload) {
-        final Map<String,dynamic> payload = rawPayload;
-    }
-}
 
 abstract class WorkerCommands {
     static const String generate = "gen";

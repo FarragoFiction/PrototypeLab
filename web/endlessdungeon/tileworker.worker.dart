@@ -1,8 +1,12 @@
+import "package:CommonLib/Logging.dart";
 import "package:CommonLib/Workers.dart";
 
+import 'world/biome.dart';
 import 'world/dungeon.dart';
+import "world/tile.dart";
 
 class TileWorker extends WorkerBase {
+    static final Logger logger = new Logger("Tile Worker");
 
     late final Dungeon dungeon;
 
@@ -36,10 +40,13 @@ class TileWorker extends WorkerBase {
 
         await tile.generate();
 
+        //logger.info("Generated tile at $x,$y");
+
         return tile.serialise();
     }
 }
 
 void main() {
+    Biome.initBiomes();
     new TileWorker();
 }
