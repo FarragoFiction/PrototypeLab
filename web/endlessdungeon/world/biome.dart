@@ -1,5 +1,8 @@
 import "package:CommonLib/Collection.dart";
 
+import 'tile.dart';
+
+typedef BiomeConnectionGenerator = Iterable<BiomeConnection> Function(int x, int y, bool rightEdge);
 
 class Biome {
     static final WeightedList<Biome> biomeList = new WeightedList<Biome>();
@@ -16,5 +19,20 @@ class Biome {
     final String name;
     final String colour;
 
+    final Map<Biome, BiomeConnectionGenerator> connectionGenerators = <Biome, BiomeConnectionGenerator>{};
+
     Biome(String this.name, String this.colour) : id = _nextID++;
+
+    BiomeConnectionGenerator getConnectionForBiome(Biome otherBiome) => connectionGenerators[otherBiome] ?? BiomeConnection.defaultConnection;
+}
+
+class BiomeConnection {
+    final double position;
+    final double size;
+
+    BiomeConnection(num position, num size): this.position = position.toDouble(), this.size = size.toDouble();
+
+    static Iterable<BiomeConnection> defaultConnection(int x, int y, bool rightEdge) sync* {
+        yield new BiomeConnection(DungeonTile.halfSize, 10);
+    }
 }
